@@ -2,6 +2,7 @@ import Foundation
 import Dispatch
 import WebKit
 import Cordova
+import os
 
 internal typealias CapacitorPlugin = CAPPlugin & CAPBridgedPlugin
 
@@ -218,16 +219,30 @@ open class CapacitorBridge: NSObject, CAPBridgeProtocol {
 
         self.webViewDelegationHandler.bridge = self
 
+        PacitBench.begin("bridge.exportCoreJS")
         exportCoreJS(localUrl: configuration.localURL.absoluteString)
+        PacitBench.end("bridge.exportCoreJS")
+
+        PacitBench.begin("bridge.registerPlugins")
         registerPlugins()
+        PacitBench.end("bridge.registerPlugins")
+
+        PacitBench.begin("bridge.cordovaCompat")
         setupCordovaCompatibility()
+        PacitBench.end("bridge.cordovaCompat")
+
+        PacitBench.begin("bridge.exportMiscJS")
         exportMiscJS()
+        PacitBench.end("bridge.exportMiscJS")
+
         canInjectJS = false
         observers.append(NotificationCenter.default.addObserver(forName: type(of: self).tmpVCAppeared.name, object: .none, queue: .none) { [weak self] _ in
             self?.tmpWindow = nil
         })
 
+        PacitBench.begin("bridge.setupWebDebugging")
         self.setupWebDebugging(configuration: configuration)
+        PacitBench.end("bridge.setupWebDebugging")
     }
 
     deinit {
@@ -308,8 +323,13 @@ open class CapacitorBridge: NSObject, CAPBridgeProtocol {
         if autoRegisterPlugins {
             do {
                 if let pluginJSON = Bundle.main.url(forResource: "capacitor.config", withExtension: "json") {
+                    PacitBench.begin("bridge.registerPlugins.readJSON")
                     let pluginData = try Data(contentsOf: pluginJSON)
+                    PacitBench.end("bridge.registerPlugins.readJSON")
+
+                    PacitBench.begin("bridge.registerPlugins.decodeJSON")
                     let registrationList = try JSONDecoder().decode(RegistrationList.self, from: pluginData)
+                    PacitBench.end("bridge.registerPlugins.decodeJSON")
 
                     for plugin in registrationList.packageClassList {
                         if let pluginClass = NSClassFromString(plugin) {
@@ -326,12 +346,14 @@ open class CapacitorBridge: NSObject, CAPBridgeProtocol {
             }
         }
 
+        PacitBench.begin("bridge.registerPlugins.loop")
         for plugin in pluginList {
             if plugin is CAPInstancePlugin.Type { continue }
             if let capPlugin = plugin as? CapacitorPlugin.Type {
                 registerPlugin(capPlugin)
             }
         }
+        PacitBench.end("bridge.registerPlugins.loop")
     }
 
     public func registerPluginType(_ pluginType: CAPPlugin.Type) {

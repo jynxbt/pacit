@@ -1,6 +1,7 @@
 import UIKit
 import WebKit
 import Cordova
+import os
 
 @objc open class CAPBridgeViewController: UIViewController {
     private var capacitorBridge: CapacitorBridge?
@@ -28,9 +29,14 @@ import Cordova
     }()
 
     override public final func loadView() {
+        PacitBench.begin("bridgeVC.loadView")
+        defer { PacitBench.end("bridgeVC.loadView") }
+
         // load the configuration and set the logging flag
+        PacitBench.begin("bridgeVC.instanceDescriptor")
         let configDescriptor = instanceDescriptor()
         let configuration = InstanceConfiguration(with: configDescriptor, isDebug: CapacitorBridge.isDevEnvironment)
+        PacitBench.end("bridgeVC.instanceDescriptor")
         CAPLog.enableLogging = configuration.loggingEnabled
         logWarnings(for: configDescriptor)
 
@@ -38,18 +44,27 @@ import Cordova
         setScreenOrientationDefaults()
 
         // get the web view
-        let assetHandler = WebViewAssetHandler(router: router())
+        PacitBench.begin("bridgeVC.prepareWebView")
+        let archive = AssetArchive(url: Bundle.main.url(forResource: "pacit-assets", withExtension: "pak") ?? URL(fileURLWithPath: ""))
+        if archive != nil {
+            CAPLog.print("⚡️  Asset archive loaded")
+        }
+        let assetHandler = WebViewAssetHandler(router: router(), archive: archive)
         assetHandler.setAssetPath(configuration.appLocation.path)
         assetHandler.setServerUrl(configuration.serverURL)
         let delegationHandler = WebViewDelegationHandler()
         prepareWebView(with: configuration, assetHandler: assetHandler, delegationHandler: delegationHandler)
         view = webView
+        PacitBench.end("bridgeVC.prepareWebView")
+
         // create the bridge
+        PacitBench.begin("bridgeVC.bridgeInit")
         capacitorBridge = CapacitorBridge(with: configuration,
                                           delegate: self,
                                           cordovaConfiguration: configDescriptor.cordovaConfiguration,
                                           assetHandler: assetHandler,
                                           delegationHandler: delegationHandler)
+        PacitBench.end("bridgeVC.bridgeInit")
         capacitorDidLoad()
 
         if configDescriptor.instanceType == .fixed {
@@ -58,8 +73,10 @@ import Cordova
     }
 
     override open func viewDidLoad() {
+        PacitBench.begin("bridgeVC.viewDidLoad")
         super.viewDidLoad()
         loadWebView()
+        PacitBench.end("bridgeVC.viewDidLoad")
     }
 
     override open func viewDidAppear(_ animated: Bool) {
@@ -165,6 +182,9 @@ import Cordova
     }
 
     public final func loadWebView() {
+        PacitBench.begin("bridgeVC.loadWebView")
+        defer { PacitBench.end("bridgeVC.loadWebView") }
+
         guard let bridge = capacitorBridge else {
             return
         }
@@ -176,6 +196,7 @@ import Cordova
         let url = bridge.config.appStartServerURL
         CAPLog.print("⚡️  Loading app at \(url.absoluteString)...")
         bridge.webViewDelegationHandler.willLoadWebview(webView)
+        PacitBench.event("bridgeVC.webViewLoadRequested", url.absoluteString)
         _ = webView?.load(URLRequest(url: url))
     }
 

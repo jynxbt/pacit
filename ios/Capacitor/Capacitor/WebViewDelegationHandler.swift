@@ -1,5 +1,6 @@
 import Foundation
 import WebKit
+import os
 
 // adopting a public protocol in an internal class is by design
 // swiftlint:disable lower_acl_than_parent
@@ -43,6 +44,7 @@ open class WebViewDelegationHandler: NSObject, WKNavigationDelegate, WKUIDelegat
     // The force unwrap is part of the protocol declaration, so we should keep it.
     // swiftlint:disable:next implicitly_unwrapped_optional
     open func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        PacitBench.event("nav.didStartProvisional")
         // Reset the bridge on each navigation
         bridge?.reset()
     }
@@ -121,6 +123,7 @@ open class WebViewDelegationHandler: NSObject, WKNavigationDelegate, WKUIDelegat
     // The force unwrap is part of the protocol declaration, so we should keep it.
     // swiftlint:disable:next implicitly_unwrapped_optional
     open func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        PacitBench.event("nav.didFinish")
         if case .initialLoad(let isOpaque) = webViewLoadingState {
             webView.isOpaque = isOpaque
             webViewLoadingState = .subsequentLoad
@@ -131,6 +134,7 @@ open class WebViewDelegationHandler: NSObject, WKNavigationDelegate, WKUIDelegat
     // The force unwrap is part of the protocol declaration, so we should keep it.
     // swiftlint:disable:next implicitly_unwrapped_optional
     open func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        PacitBench.event("nav.didFail", error.localizedDescription)
         if case .initialLoad(let isOpaque) = webViewLoadingState {
             webView.isOpaque = isOpaque
             webViewLoadingState = .subsequentLoad
