@@ -28,3 +28,24 @@ capacitor-build.log
 # Carthage and Carthage-built binaries
 Carthage
 *.xcframework.zip
+
+# Pacit benchmarks
+benchmarks/ios/BenchHost/Pods/
+benchmarks/ios/BenchHost/BenchHost.xcworkspace/
+benchmarks/ios/BenchHost/build/
+benchmarks/ios/BenchHost/BenchHost/pacit-assets.pak
+benchmarks/ios/BenchHost/BenchHost/pacit-assets.manifest.json
+benchmarks/ios/BenchHost/BenchHost/public/*
+!benchmarks/ios/BenchHost/BenchHost/public/.gitkeep
+benchmarks/fixtures/nuxt-mini/node_modules/
+benchmarks/fixtures/nuxt-mini/.nuxt/
+benchmarks/fixtures/nuxt-mini/.output/
+benchmarks/fixtures/nuxt-mini/dist/
+benchmarks/fixtures/nuxt-mini/bun.lock
+benchmarks/runner/node_modules/
+benchmarks/runner/bun.lock
+benchmarks/results/
+!benchmarks/results/.gitkeep
+*.trace
+*.trace/
+DESIGN.md

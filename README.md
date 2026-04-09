@@ -1,80 +1,99 @@
 <br />
 <div align="center">
-  <img src="https://user-images.githubusercontent.com/236501/105104854-e5e42e80-5a67-11eb-8cb8-46fccb079062.png" width="560" />
-</div>
-<div align="center">
-  ⚡️ Cross-platform apps with JavaScript and the Web ⚡️
+  <h1>Pacit</h1>
+  <p><strong>Faster Capacitor for iOS</strong></p>
+  <p>A performance-focused fork of <a href="https://github.com/ionic-team/capacitor">Capacitor 8.3.0</a> optimized for Nuxt/Vue SPA cold starts on iOS.</p>
 </div>
 <br />
-<p align="center">
-  <a href="https://github.com/ionic-team/capacitor/actions?query=workflow%3ACI"><img src="https://img.shields.io/github/actions/workflow/status/ionic-team/capacitor/ci.yml?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@capacitor/core"><img src="https://img.shields.io/npm/dw/@capacitor/core?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@capacitor/core"><img src="https://img.shields.io/npm/v/@capacitor/core?style=flat-square" /></a>
-  <a href="https://www.npmjs.com/package/@capacitor/core"><img src="https://img.shields.io/npm/l/@capacitor/core?style=flat-square" /></a>
-</p>
-<p align="center">
-  <a href="https://capacitorjs.com/docs"><img src="https://img.shields.io/static/v1?label=docs&message=capacitorjs.com&color=blue&style=flat-square" /></a>
-  <a href="https://twitter.com/capacitorjs"><img src="https://img.shields.io/twitter/follow/capacitorjs" /></a>
-</p>
 
 ---
 
-Capacitor lets you run web apps natively on iOS, Android, Web, and more with a single codebase and cross-platform APIs.
+## What is Pacit?
 
-Capacitor provides a cross-platform API and code execution layer that makes it easy to call Native SDKs from web code and to write custom native plugins that your app may need. Additionally, Capacitor provides first-class Progressive Web App support so you can write one app and deploy it to the app stores _and_ the mobile web.
+Pacit is a fork of [Capacitor](https://capacitorjs.com) that makes iOS cold starts significantly faster for chunked JavaScript SPAs (Nuxt, Vue, etc.). Stock Capacitor has three performance bottlenecks that Pacit addresses:
 
-Capacitor comes with a Plugin API for building native plugins. Plugins can be written inside Capacitor apps or packaged into an npm dependency for community use. Plugin authors are encouraged to use Swift to develop plugins in iOS and Kotlin (or Java) in Android.
+1. **Synchronous per-chunk disk reads** — `WebViewAssetHandler` calls `Data(contentsOf:)` for every JS/CSS chunk on the URL-scheme handler thread. For a 40-chunk Nuxt build, that's 40+ blocking filesystem syscalls in the critical path.
+
+2. **`Cache-Control: no-cache` on all bundled assets** — defeats WebKit's in-memory JS bytecode cache, forcing re-parsing on every launch.
+
+3. **Synchronous plugin JSON loading** — `CapacitorBridge.init` reads and decodes `capacitor.config.json` on the main thread before the WebView can start loading.
+
+## Optimizations
+
+| Phase | What | Impact |
+|-------|------|--------|
+| **B** | `Cache-Control: immutable` + ETag + 304 handling | Enables WebKit bytecode cache for warm starts |
+| **A** | Bundled asset archive (`.pak`) — single mmap'd file, O(1) lookup | Eliminates per-chunk disk I/O on cold start |
+| **C** | Bridge init reorder + WKWebView preheat | Saves ~30-50 ms of native Scene Creation |
+| **D** | Build-time plugin registry | Skips runtime JSON parse (~5 ms) |
+
+## Measured Baseline (iPhone 13, iOS 26.3)
+
+```
+T3 native (process → foreground):  496 ms median
+  - Process Creation (OS):         355 ms (75%, untouchable)
+  - App-controllable:              ~116 ms
+window.load (web content):         157 ms median
+```
+
+Benchmark harness included at `benchmarks/` — run your own:
+
+```bash
+bun run benchmarks/runner/bench.ts --label my-test --runs 10 --allow-dirty
+```
 
 ## Getting Started
 
-Capacitor was designed to drop-in to any existing modern web app. Run the following commands to initialize Capacitor in your app:
+Pacit is a drop-in replacement for `@capacitor/ios`. Point your Podfile or SPM package at this repo instead of upstream Capacitor:
 
-```
-npm install @capacitor/core @capacitor/cli
-npx cap init
-```
-
-Next, install any of the desired native platforms:
-
-```
-npm install @capacitor/android
-npx cap add android
-npm install @capacitor/ios
-npx cap add ios
+```ruby
+# Podfile
+pod 'Capacitor', :path => 'path/to/pacit/ios'
+pod 'CapacitorCordova', :path => 'path/to/pacit/ios'
 ```
 
-### New App?
+Everything else works the same as stock Capacitor — same CLI, same plugins, same config.
 
-For new apps, we recommend trying the [Ionic Framework](https://ionicframework.com/) with Capacitor.
+### Asset Archive (optional)
 
-To begin, install the [Ionic CLI](https://ionicframework.com/docs/cli/) (`npm install -g @ionic/cli`) and start a new app:
+To enable the `.pak` mmap'd asset archive for maximum cold-start performance:
 
+```bash
+# Pack your web assets into a single archive
+bun run pacit/benchmarks/runner/pack-assets.ts .output/public ios/App/App/pacit-assets.pak
+
+# Add pacit-assets.pak as a bundle resource in your Xcode project
 ```
-ionic start --capacitor
+
+The archive is loaded automatically when present. Falls back to standard per-file reads when absent.
+
+## Benchmarking
+
+Pacit includes a full benchmark harness for measuring cold-start performance on real iOS devices:
+
+```bash
+cd pacit
+
+# Build the test fixture
+cd benchmarks/fixtures/nuxt-mini && bun install && bun run build && cd ../../..
+
+# Run benchmark (requires iPhone connected via USB)
+bun run benchmarks/runner/bench.ts --label baseline --runs 10 --allow-dirty
 ```
 
-## FAQ
+Results are saved to `benchmarks/results/` with per-run traces and a markdown report.
 
-#### What are the differences between Capacitor and Cordova?
+## Compatibility
 
-In spirit, Capacitor and Cordova are very similar. Capacitor offers backward compatibility with a vast majority of Cordova plugins.
+- iOS 15.0+
+- Capacitor 8.3.0 API compatible
+- All Capacitor plugins work unchanged
+- CocoaPods and SPM supported
 
-Capacitor and Cordova differ in that Capacitor:
+## Upstream
 
-- takes a more modern approach to tooling and plugin development
-- treats native projects as source artifacts as opposed to build artifacts
-- is maintained by the Ionic Team 💙😊
+Forked from [ionic-team/capacitor](https://github.com/ionic-team/capacitor) at v8.3.0. Optimizations are isolated to new files or small gated diffs to minimize merge conflicts on upstream pulls.
 
-See [the docs](https://capacitorjs.com/docs/cordova#differences-between-capacitor-and-cordova) for more details.
+## License
 
-#### Do I need to use Ionic Framework with Capacitor?
-
-No, you do not need to use Ionic Framework with Capacitor. Without the Ionic Framework, you may need to implement Native UI yourself. Without the Ionic CLI, you may need to configure tooling yourself to enable features such as [livereload](https://ionicframework.com/docs/cli/livereload). See [the docs](https://capacitorjs.com/docs/getting-started/with-ionic) for more details.
-
-## Contributing
-
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-
-## Contributors
-
-Made possible by the [Capacitor community](https://github.com/ionic-team/capacitor/graphs/contributors). 💖
+[MIT](./LICENSE) — same as Capacitor.
