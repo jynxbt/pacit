@@ -27,7 +27,7 @@ Pacit is a fork of [Capacitor](https://capacitorjs.com) that makes iOS cold star
 | **C** | Bridge init reorder + WKWebView preheat | Saves ~30-50 ms of native Scene Creation |
 | **D** | Build-time plugin registry | Skips runtime JSON parse (~5 ms) |
 
-## Measured Baseline (iPhone 13, iOS 26.3)
+  ## Measured Baseline (iPhone 16, iOS 26.4)
 
 ```
 T3 native (process → foreground):  496 ms median
