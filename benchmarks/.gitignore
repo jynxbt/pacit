@@ -1,0 +1,12 @@
+# Trace bundles are large binary files
+**/*.trace
+**/*.trace/
+# Build artifacts
+fixtures/nuxt-mini/node_modules/
+fixtures/nuxt-mini/.nuxt/
+fixtures/nuxt-mini/.output/
+fixtures/nuxt-mini/dist
+ios/BenchHost/Pods/
+ios/BenchHost/BenchHost.xcworkspace/
+ios/BenchHost/build/
+runner/node_modules/

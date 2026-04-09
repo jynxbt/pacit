@@ -1,0 +1,12 @@
+{
+  "appId": "xyz.pacit.benchhost",
+  "appName": "PacitBench",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "ios": {
+    "backgroundColor": "#0a0a0a",
+    "webContentsDebuggingEnabled": false,
+    "allowsLinkPreview": false
+  },
+  "plugins": {}
+}
