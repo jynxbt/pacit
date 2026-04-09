@@ -1,14 +1,17 @@
 import Foundation
 import UniformTypeIdentifiers
+import os
 
 @objc(CAPWebViewAssetHandler)
 // swiftlint:disable type_body_length
 open class WebViewAssetHandler: NSObject, WKURLSchemeHandler {
     private var router: Router
     private var serverUrl: URL?
+    public var archive: AssetArchive?
 
-    public init(router: Router) {
+    public init(router: Router, archive: AssetArchive? = nil) {
         self.router = router
+        self.archive = archive
         super.init()
     }
 
@@ -35,6 +38,23 @@ open class WebViewAssetHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
+        let spID: OSSignpostID
+        if PacitBench.isEnabled {
+            spID = PacitBench.signpostID(urlSchemeTask)
+            PacitBench.beginAsset(
+                id: spID,
+                path: url.path,
+                mime: url.pathExtension
+            )
+        } else {
+            spID = .null
+        }
+        defer {
+            if spID != .null {
+                PacitBench.endAsset(id: spID, outcome: "completed")
+            }
+        }
+
         if stringToLoad.starts(with: CapacitorBridge.fileStartIdentifier) {
             startPath = stringToLoad.replacingOccurrences(of: CapacitorBridge.fileStartIdentifier, with: "")
         } else {
@@ -46,9 +66,12 @@ open class WebViewAssetHandler: NSObject, WKURLSchemeHandler {
         do {
             var data = Data()
             let mimeType = mimeTypeForExtension(pathExtension: url.pathExtension)
+            let cacheControl = isUsingLiveReload(localUrl)
+                ? "no-cache"
+                : "public, max-age=31536000, immutable"
             var headers =  [
                 "Content-Type": mimeType,
-                "Cache-Control": "no-cache"
+                "Cache-Control": cacheControl
             ]
 
             // if using live reload, then set CORS headers
@@ -77,23 +100,47 @@ open class WebViewAssetHandler: NSObject, WKURLSchemeHandler {
                 urlSchemeTask.didReceive(response!)
                 try fileHandle.close()
             } else {
-                if !stringToLoad.contains("cordova.js") {
+                // Try archive first (zero-copy mmap), fall back to disk
+                if let archive = archive,
+                   let entry = archive.entry(for: stringToLoad) ?? archive.entry(for: startPath) {
+                    // Check If-None-Match for 304
+                    if let ifNoneMatch = urlSchemeTask.request.value(forHTTPHeaderField: "If-None-Match"),
+                       ifNoneMatch == entry.etagHex {
+                        headers["ETag"] = entry.etagHex
+                        let response = HTTPURLResponse(url: localUrl, statusCode: 304, httpVersion: nil, headerFields: headers)
+                        urlSchemeTask.didReceive(response!)
+                        urlSchemeTask.didFinish()
+                        return
+                    }
+
+                    data = archive.slice(for: entry)
+                    headers["ETag"] = entry.etagHex
+                    headers["Content-Type"] = entry.mimeType
+                    let httpResponse = HTTPURLResponse(url: localUrl, statusCode: 200, httpVersion: nil, headerFields: headers)
+                    urlSchemeTask.didReceive(httpResponse!)
+                } else if !stringToLoad.contains("cordova.js") {
+                    // Disk fallback
                     if isMediaExtension(pathExtension: url.pathExtension) {
                         data = try Data(contentsOf: fileUrl, options: Data.ReadingOptions.mappedIfSafe)
                     } else {
+                        if spID != .null { PacitBench.begin("asset.diskRead", id: spID) }
                         data = try Data(contentsOf: fileUrl)
+                        if spID != .null { PacitBench.end("asset.diskRead", id: spID) }
                     }
-                }
-                let urlResponse = URLResponse(url: localUrl, mimeType: mimeType, expectedContentLength: data.count, textEncodingName: nil)
-                let httpResponse = HTTPURLResponse(url: localUrl, statusCode: 200, httpVersion: nil, headerFields: headers)
-                if isMediaExtension(pathExtension: url.pathExtension) {
-                    urlSchemeTask.didReceive(urlResponse)
-                } else {
-                    urlSchemeTask.didReceive(httpResponse!)
+                    let urlResponse = URLResponse(url: localUrl, mimeType: mimeType, expectedContentLength: data.count, textEncodingName: nil)
+                    let httpResponse = HTTPURLResponse(url: localUrl, statusCode: 200, httpVersion: nil, headerFields: headers)
+                    if isMediaExtension(pathExtension: url.pathExtension) {
+                        urlSchemeTask.didReceive(urlResponse)
+                    } else {
+                        urlSchemeTask.didReceive(httpResponse!)
+                    }
                 }
             }
             urlSchemeTask.didReceive(data)
         } catch let error as NSError {
+            if spID != .null {
+                PacitBench.endAsset(id: spID, outcome: "failed")
+            }
             urlSchemeTask.didFailWithError(error)
             return
         }
