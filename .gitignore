@@ -1,33 +1,13 @@
-.idea/
-dist/
-types/
-.sourcemaps
-xcuserdata/
-node_modules/
-Pods/
-*.map
 .DS_Store
-Podfile.lock
-Build/*
+.idea/
+xcuserdata/
+*.sw*
 build/
-Index/
-.*.sw*
-android-template.iml
-!/build/.npmkeep
-lerna-debug.log
-local.properties
-contents.xcworkspacedata
-android-template/.gradle/
-android-template/app/app.iml
-.gradle/
-.settings/
-.project
-.env
-capacitor-build.log
-
-# Carthage and Carthage-built binaries
-Carthage
-*.xcframework.zip
+Build/
+Pods/
+Podfile.lock
+*.trace
+*.trace/
 
 # Pacit benchmarks
 benchmarks/ios/BenchHost/Pods/
@@ -40,12 +20,11 @@ benchmarks/ios/BenchHost/BenchHost/public/*
 benchmarks/fixtures/nuxt-mini/node_modules/
 benchmarks/fixtures/nuxt-mini/.nuxt/
 benchmarks/fixtures/nuxt-mini/.output/
-benchmarks/fixtures/nuxt-mini/dist/
+benchmarks/fixtures/nuxt-mini/dist
 benchmarks/fixtures/nuxt-mini/bun.lock
 benchmarks/runner/node_modules/
 benchmarks/runner/bun.lock
 benchmarks/results/
 !benchmarks/results/.gitkeep
-*.trace
-*.trace/
+
 DESIGN.md
