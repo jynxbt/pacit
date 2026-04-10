@@ -17,6 +17,7 @@
 		BENCH001A0000000000000001 /* BenchBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BENCH001F0000000000000001 /* BenchBridgeViewController.swift */; };
 		BENCH001A0000000000000002 /* CAPPerfMarkPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BENCH001F0000000000000002 /* CAPPerfMarkPlugin.swift */; };
 		BENCH001A0000000000000003 /* pacit-assets.pak in Resources */ = {isa = PBXBuildFile; fileRef = BENCH001F0000000000000003 /* pacit-assets.pak */; };
+		BENCH001A0000000000000004 /* CAPBenchPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BENCH001F0000000000000004 /* CAPBenchPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		BENCH001F0000000000000001 /* BenchBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchBridgeViewController.swift; sourceTree = "<group>"; };
 		BENCH001F0000000000000002 /* CAPPerfMarkPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CAPPerfMarkPlugin.swift; sourceTree = "<group>"; };
 		BENCH001F0000000000000003 /* pacit-assets.pak */ = {isa = PBXFileReference; lastKnownFileType = file; path = "pacit-assets.pak"; sourceTree = "<group>"; };
+		BENCH001F0000000000000004 /* CAPBenchPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CAPBenchPlugin.swift; sourceTree = "<group>"; };
 		FC68EB0AF532CFC21C3344DD /* Pods-BenchHost.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BenchHost.debug.xcconfig"; path = "Pods/Target Support Files/Pods-BenchHost/Pods-BenchHost.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -81,6 +83,7 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				BENCH001F0000000000000001 /* BenchBridgeViewController.swift */,
 				BENCH001F0000000000000002 /* CAPPerfMarkPlugin.swift */,
+				BENCH001F0000000000000004 /* CAPBenchPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -216,6 +219,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				BENCH001A0000000000000001 /* BenchBridgeViewController.swift in Sources */,
 				BENCH001A0000000000000002 /* CAPPerfMarkPlugin.swift in Sources */,
+				BENCH001A0000000000000004 /* CAPBenchPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

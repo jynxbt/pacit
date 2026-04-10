@@ -41,15 +41,27 @@ final class BenchBridgeViewController: CAPBridgeViewController, WKScriptMessageH
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        if message.name == "pacitPerf", let name = message.body as? String {
-            let elapsed = ProcessInfo.processInfo.systemUptime - processStart
-            let ms = Int(elapsed * 1000)
-            marks.append((name, elapsed))
-            PacitBench.event("js.mark", name)
-            NSLog("PACIT_BENCH_MARK: %@ %dms", name, ms)
+        if message.name == "pacitPerf" {
+            // Handle echo requests for microbench: { type: "echo", id: "...", value: "..." }
+            if let dict = message.body as? [String: Any], dict["type"] as? String == "echo" {
+                let id = dict["id"] as? String ?? ""
+                let value = dict["value"] as? String ?? ""
+                let js = "window.__pacitEchoResolve&&window.__pacitEchoResolve('\(id)','\(value)')"
+                webView?.evaluateJavaScript(js, completionHandler: nil)
+                return
+            }
 
-            if name == "nuxt.interactive" || name == "window.load" {
-                writeBenchResults()
+            // Handle string marks (perf timing)
+            if let name = message.body as? String {
+                let elapsed = ProcessInfo.processInfo.systemUptime - processStart
+                let ms = Int(elapsed * 1000)
+                marks.append((name, elapsed))
+                PacitBench.event("js.mark", name)
+                NSLog("PACIT_BENCH_MARK: %@ %dms", name, ms)
+
+                if name == "nuxt.interactive" || name == "window.load" || name.hasPrefix("microbench.done") {
+                    writeBenchResults()
+                }
             }
         }
     }

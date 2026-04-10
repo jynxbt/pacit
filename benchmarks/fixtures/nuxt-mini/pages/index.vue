@@ -5,6 +5,7 @@
     <nav>
       <NuxtLink to="/detail/1">Detail 1</NuxtLink>
       <NuxtLink to="/heavy">Heavy route</NuxtLink>
+      <NuxtLink to="/microbench">Micro Benchmark</NuxtLink>
     </nav>
   </main>
 </template>
