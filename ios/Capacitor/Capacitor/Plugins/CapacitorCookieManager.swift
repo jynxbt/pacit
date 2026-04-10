@@ -1,15 +1,21 @@
 import Foundation
 
 public class CapacitorWKCookieObserver: NSObject, WKHTTPCookieStoreObserver {
-    // Sync WKWebView Cookies to HTTPCookieStorage
+    private var debounceWorkItem: DispatchWorkItem?
+    private let syncQueue = DispatchQueue(label: "xyz.pacit.cookieSync", qos: .utility)
+
     public func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
-        DispatchQueue.main.async {
+        debounceWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard self != nil else { return }
             cookieStore.getAllCookies { cookies in
-                cookies.forEach { cookie in
+                for cookie in cookies {
                     HTTPCookieStorage.shared.setCookie(cookie)
                 }
             }
         }
+        debounceWorkItem = work
+        syncQueue.asyncAfter(deadline: .now() + .milliseconds(500), execute: work)
     }
 }
 

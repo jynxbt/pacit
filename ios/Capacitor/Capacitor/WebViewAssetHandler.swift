@@ -176,7 +176,17 @@ open class WebViewAssetHandler: NSObject, WKURLSchemeHandler {
         return false
     }
 
+    private lazy var proxySession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.httpMaximumConnectionsPerHost = 6
+        config.timeoutIntervalForRequest = 30
+        config.urlCache = nil
+        return URLSession(configuration: config)
+    }()
+
     func handleCapacitorHttpRequest(_ urlSchemeTask: WKURLSchemeTask, _ localUrl: URL, _ isHttpsRequest: Bool) {
+        guard !urlSchemeTask.stopped else { return }
+
         var urlRequest = urlSchemeTask.request
         guard let url = urlRequest.url else { return }
 
@@ -186,48 +196,43 @@ open class WebViewAssetHandler: NSObject, WKURLSchemeHandler {
             urlRequest.url = URL(string: targetUrl)
         }
 
-        let urlSession = URLSession.shared
-        let task = urlSession.dataTask(with: urlRequest) { (data, response, error) in
-            DispatchQueue.main.async {
-                guard !urlSchemeTask.stopped else { return }
-                if let error = error {
-                    urlSchemeTask.didFailWithError(error)
-                    return
-                }
+        let task = proxySession.dataTask(with: urlRequest) { [weak self] (data, response, error) in
+            guard !urlSchemeTask.stopped else { return }
 
-                if let response = response as? HTTPURLResponse {
-                    let existingHeaders = response.allHeaderFields
-                    var newHeaders: [AnyHashable: Any] = [:]
-
-                    // if using live reload, then set CORS headers
-                    if self.isUsingLiveReload(url) {
-                        newHeaders = [
-                            "Access-Control-Allow-Origin": self.serverUrl?.absoluteString ?? "",
-                            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS, TRACE"
-                        ]
-                    }
-
-                    if let mergedHeaders = existingHeaders.merging(newHeaders, uniquingKeysWith: { (_, newHeaders) in newHeaders }) as? [String: String] {
-
-                        if let responseUrl = response.url {
-                            if let modifiedResponse = HTTPURLResponse(
-                                url: responseUrl,
-                                statusCode: response.statusCode,
-                                httpVersion: nil,
-                                headerFields: mergedHeaders
-                            ) {
-                                urlSchemeTask.didReceive(modifiedResponse)
-                            }
-                        }
-
-                        if let data = data {
-                            urlSchemeTask.didReceive(data)
-                        }
-                    }
-                }
-                urlSchemeTask.didFinish()
+            if let error = error {
+                urlSchemeTask.didFailWithError(error)
                 return
             }
+
+            if let response = response as? HTTPURLResponse {
+                let existingHeaders = response.allHeaderFields
+                var newHeaders: [AnyHashable: Any] = [:]
+
+                if let self = self, self.isUsingLiveReload(url) {
+                    newHeaders = [
+                        "Access-Control-Allow-Origin": self.serverUrl?.absoluteString ?? "",
+                        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS, TRACE"
+                    ]
+                }
+
+                if let mergedHeaders = existingHeaders.merging(newHeaders, uniquingKeysWith: { (_, new) in new }) as? [String: String] {
+                    if let responseUrl = response.url {
+                        if let modifiedResponse = HTTPURLResponse(
+                            url: responseUrl,
+                            statusCode: response.statusCode,
+                            httpVersion: nil,
+                            headerFields: mergedHeaders
+                        ) {
+                            urlSchemeTask.didReceive(modifiedResponse)
+                        }
+                    }
+
+                    if let data = data {
+                        urlSchemeTask.didReceive(data)
+                    }
+                }
+            }
+            urlSchemeTask.didFinish()
         }
 
         task.resume()

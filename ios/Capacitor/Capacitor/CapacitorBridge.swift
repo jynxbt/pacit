@@ -599,24 +599,38 @@ open class CapacitorBridge: NSObject, CAPBridgeProtocol {
     /**
      Send a successful result to the JavaScript layer.
      */
+    private var pendingJsResponses: [String] = []
+    private var batchWorkItem: DispatchWorkItem?
+
     func toJs(result: JSResultProtocol, save: Bool) {
         let resultJson = result.jsonPayload()
-        CAPLog.print("⚡️  TO JS", resultJson.prefix(256))
 
-        DispatchQueue.main.async {
-            self.webView?.evaluateJavaScript("""
-             window.Capacitor.fromNative({
-             callbackId: '\(result.callbackID)',
-             pluginId: '\(result.pluginID)',
-             methodName: '\(result.methodName)',
-             save: \(save),
-             success: true,
-             data: \(resultJson)
-             })
-            """) { (_, error) in
-                if let error = error {
-                    CAPLog.print(error)
+        let js = "window.Capacitor.fromNative({callbackId:'\(result.callbackID)',pluginId:'\(result.pluginID)',methodName:'\(result.methodName)',save:\(save),success:true,data:\(resultJson)})"
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.pendingJsResponses.append(js)
+
+            if self.batchWorkItem == nil {
+                let work = DispatchWorkItem { [weak self] in
+                    self?.flushJsResponses()
                 }
+                self.batchWorkItem = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(4), execute: work)
+            }
+        }
+    }
+
+    private func flushJsResponses() {
+        batchWorkItem = nil
+        guard !pendingJsResponses.isEmpty else { return }
+        let batch = pendingJsResponses
+        pendingJsResponses = []
+
+        let js = batch.joined(separator: ";")
+        self.webView?.evaluateJavaScript(js) { (_, error) in
+            if let error = error {
+                CAPLog.print(error)
             }
         }
     }
